@@ -21,14 +21,10 @@ RUN pip3 install pandas
 WORKDIR /app
 
 # Copy all necessary files
-COPY llada_main.py .
-COPY generate.py .
-COPY generate_vanilla_prm.py .
-COPY load_dataset.py .
-COPY gsm8k_test_data.csv .
 
+COPY generate_backmasking.py .
 
 
 # Run the application
-CMD ["python3", "llada_main.py"]
+CMD ["python3", "generate_backmasking.py"]
 

@@ -3,7 +3,6 @@ import torch
 from transformers import AutoTokenizer, AutoModelForCausalLM, AutoModel
 from generate_vanilla_prm import generate as generateVanillaPRM
 from generate import generate as generateRawDiffusion
-from load_dataset import getTestDataPrefix
 import pandas as pd
 
 
