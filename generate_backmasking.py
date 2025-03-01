@@ -573,7 +573,7 @@ def main():
                         help="Prompt to generate from")
     parser.add_argument("--model_path", type=str, default="GSAI-ML/LLaDA-8B-Instruct", 
                         help="Path to the main model")
-    parser.add_argument("--prm_model_path", type=str, default="Qwen/Qwen2.5-Math-PRM800K", 
+    parser.add_argument("--prm_model_path", type=str, default="Qwen/Qwen2.5-Math-PRM-7B", 
                         help="Path to the PRM model")
     parser.add_argument("--steps", type=int, default=128, help="Number of sampling steps")
     parser.add_argument("--gen_length", type=int, default=128, help="Length of generated text")
