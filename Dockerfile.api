@@ -16,7 +16,8 @@ RUN pip3 install --no-cache-dir \
     modelscope==1.9.5 \
     transformers_stream_generator==0.0.4 \
     flask \
-    flask-cors
+    flask-cors \
+    waitress
 
 # Create working directory and copy files
 RUN pip3 install pandas
