@@ -561,8 +561,6 @@ def generate(
     print(f"\n{'='*50}")
     print(f"Generation complete!")
     print(f"Final block scores: {[f'{score:.4f}' for score in block_scores]}")
-    generated_text = tokenizer.batch_decode(out[:, input_ids.shape[1]:], skip_special_tokens=True)[0]
-    print(f"Generated text sample: {generated_text[:100]}{'...' if len(generated_text) > 100 else ''}")
     print(f"{'='*50}")
     
     return x
