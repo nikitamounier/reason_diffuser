@@ -1,24 +1,23 @@
-FROM ubuntu:latest
+FROM python:3.9-slim
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
-    python3 \
-    python3-pip \
+    build-essential \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Python packages
 RUN pip3 install --no-cache-dir \
-    transformers \
-    torch \
-    numpy \
-    pandas \
-    accelerate
+    transformers==4.36.2 \
+    torch==2.1.2 \
+    numpy==1.26.3 \
+    pandas==2.1.4 \
+    accelerate==0.26.1
 
 # Create working directory
 WORKDIR /app
 
 # Copy all necessary files
-COPY main.py .
+COPY llada_main.py .
 COPY generate.py .
 
 # Run the application
