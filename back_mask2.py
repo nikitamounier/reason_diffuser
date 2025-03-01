@@ -21,6 +21,7 @@ class BackMasker(Scene):
         # Create blocks
         blocks = []
         block_scores = []
+        token_confidences = []  # Track token-level confidence
         block_group = VGroup()
         mask_indicators = []  # To track which blocks are masked
 
@@ -47,6 +48,9 @@ class BackMasker(Scene):
             # Initial score (not shown since blocks start masked)
             score = 0.0  # Will be set during generation
             block_scores.append(score)
+
+            # Simulate token confidences within each block
+            token_confidences.append(np.random.uniform(0.3, 0.9, size=block_length))
 
             # Add score text (initially empty since blocks are masked)
             score_text = Text("", font_size=20)
@@ -78,7 +82,27 @@ class BackMasker(Scene):
         masked_label = Text("Masked Block Group", font_size=16)
         masked_label.next_to(masked_sample, RIGHT, buff=0.3)
 
-        legend_group.add(unmasked_sample, unmasked_label, masked_sample, masked_label)
+        # Add partial masking example
+        partial_sample = Rectangle(
+            height=0.5, width=1, fill_opacity=0.5, fill_color=BLACK
+        )
+        # Create a gradient effect to show partial masking
+        partial_overlay = Rectangle(
+            height=0.5, width=0.6, fill_opacity=0.3, fill_color=GRAY, stroke_opacity=0
+        )
+        partial_overlay.align_to(partial_sample, LEFT)
+        partial_group = VGroup(partial_sample, partial_overlay)
+        partial_label = Text("Partially Masked (Token-Level)", font_size=16)
+        partial_label.next_to(partial_group, RIGHT, buff=0.3)
+
+        legend_group.add(
+            unmasked_sample,
+            unmasked_label,
+            masked_sample,
+            masked_label,
+            partial_group,
+            partial_label,
+        )
         legend_group.arrange(DOWN, aligned_edge=LEFT, buff=0.3)
         legend_group.to_corner(DR, buff=0.5)
 
@@ -88,8 +112,14 @@ class BackMasker(Scene):
         shading_explanation = Text(
             "Gray shading represents how unmasked a block is", font_size=16
         )
-        shading_explanation.next_to(legend_group, UP, buff=0.5)
-        self.play(FadeIn(shading_explanation))
+        token_explanation = Text(
+            "Backmasking selectively regenerates based on PRM score and token confidence",
+            font_size=16,
+        )
+        explanations = VGroup(shading_explanation, token_explanation)
+        explanations.arrange(DOWN, buff=0.2)
+        explanations.next_to(legend_group, UP, buff=0.5)
+        self.play(FadeIn(explanations))
 
         # Simulation loop
         current_position = 0
@@ -107,7 +137,7 @@ class BackMasker(Scene):
                     # First 2 blocks have high scores
                     new_score = np.random.uniform(0.8, 0.95)
                 elif current_position == 2:
-                    # 3rd block has low score
+                    # 3rd block has low score - exactly 0.4
                     new_score = 0.4
                 else:
                     # Last block has varied score
@@ -134,67 +164,116 @@ class BackMasker(Scene):
                     run_time=0.5,
                 )
 
-                current_position += 1
+                # If we just generated the 3rd block (index 2) with the 0.4 score,
+                # immediately apply backmasking to all blocks (1-3)
+                if current_position == 2:
+                    # Create a text explanation
+                    explanation = Text(
+                        "Backmasking triggered by low quality block (0.4)",
+                        font_size=24,
+                    )
+                    explanation.to_edge(DOWN, buff=1)
+                    self.play(Write(explanation))
 
-            # Apply backmasking if we've seen a low quality block (even if current one is good)
-            should_backmask = False
-            if current_position > 0:
-                # Check if any previous block has a low score
-                if any(
-                    score <= backmasking_threshold
-                    for score in block_scores[:current_position]
-                ):
-                    should_backmask = True
+                    # Mask all blocks 0-2, but with PARTIAL masking based on token confidence
+                    masked_blocks = [0, 1, 2]
 
-            if should_backmask or current_position == num_blocks:
-                # Calculate backmasking probabilities
-                backmasking_probs = self.calculate_backmasking_probs(
-                    block_scores[:current_position], backmasking_alpha
-                )
+                    # First, show token-level confidence visualization
+                    token_conf_text = Text(
+                        "Analyzing token-level confidence...", font_size=24
+                    )
+                    token_conf_text.next_to(explanation, UP, buff=0.5)
+                    self.play(Write(token_conf_text))
 
-                # Create a text explanation
-                explanation = Text(
-                    f"Backmasking after position {current_position} due to low quality block",
-                    font_size=24,
-                )
-                explanation.to_edge(DOWN, buff=1)
-                self.play(Write(explanation))
+                    # For each block, create a visualization of token confidence
+                    token_visuals = []
+                    for i in masked_blocks:
+                        # Create mini-rectangles to represent tokens with varying confidence
+                        token_group = VGroup()
+                        for j in range(8):  # Show 8 representative tokens per block
+                            # Use actual token confidences to determine opacity
+                            conf = token_confidences[i][j * 4]  # Sample every 4th token
+                            token_rect = Rectangle(
+                                height=0.2,
+                                width=0.3,
+                                fill_opacity=0.8,
+                                fill_color=RED if conf < 0.6 else GREEN,
+                                stroke_width=1,
+                            )
+                            if j > 0:
+                                token_rect.next_to(token_group[-1], RIGHT, buff=0.05)
+                            token_group.add(token_rect)
 
-                # First pass: Identify blocks to mask based on scores
-                masked_blocks = []
-                for i in range(current_position):
-                    mask_probability = backmasking_probs[i]
+                        token_group.scale(0.8)
+                        token_group.next_to(blocks[i], UP, buff=0.2)
+                        token_visuals.append(token_group)
 
-                    # Always mask the low-quality block (position 2 with score 0.4)
-                    # Also mask some previous blocks even if they had good scores
-                    if block_scores[i] < backmasking_threshold or (
-                        np.random.random() < mask_probability
-                        and i < current_position - 1
-                    ):
-                        # Calculate mask opacity based on how bad the score is
-                        mask_opacity = 0.9 * (1 - block_scores[i])
+                    # Show token confidence visualization
+                    self.play(*[FadeIn(tv) for tv in token_visuals], run_time=1)
+                    self.wait(1)
 
-                        # Visualize masking by showing black overlay
+                    # Now apply partial masking based on PRM score and token confidence
+                    for i in masked_blocks:
+                        # Create partial masking effect - some parts more masked than others
+                        # Higher PRM score = less overall masking
+                        base_opacity = 0.9 - (block_scores[i] * 0.3)
+
+                        # Create a partial mask with varying opacity
+                        partial_mask = VGroup()
+                        for j in range(6):  # Divide block into 6 sections
+                            # Use token confidence to determine mask opacity for this section
+                            section_conf = np.mean(
+                                token_confidences[i][j * 5 : (j + 1) * 5]
+                            )
+                            section_opacity = base_opacity * (1.1 - section_conf)
+
+                            section = Rectangle(
+                                height=1,
+                                width=0.5,
+                                fill_opacity=section_opacity,
+                                fill_color=BLACK,
+                                stroke_opacity=0,
+                            )
+
+                            if j > 0:
+                                section.next_to(partial_mask[-1], RIGHT, buff=0)
+                            else:
+                                section.align_to(blocks[i], LEFT)
+
+                            partial_mask.add(section)
+
+                        # Position the partial mask over the block
+                        partial_mask.move_to(blocks[i].get_center())
+
+                        # Animate the transition to partial masking
                         self.play(
-                            mask_indicators[i].animate.set_fill(opacity=mask_opacity),
-                            blocks[i].animate.set_fill(
-                                BLACK, opacity=0.2
-                            ),  # Very little gray for masked blocks
-                            run_time=0.3,
+                            FadeOut(mask_indicators[i]),
+                            FadeIn(partial_mask),
+                            blocks[i].animate.set_fill(GRAY, opacity=0.3),
+                            run_time=0.8,
                         )
+
+                        # Replace the old mask indicator with the partial mask
+                        mask_indicators[i] = partial_mask
 
                         # Remove score text when masked
                         empty_text = Text("", font_size=20)
                         empty_text.next_to(blocks[i], DOWN, buff=0.1)
                         self.play(
-                            Transform(blocks[i].score_text, empty_text), run_time=0.2
+                            Transform(blocks[i].score_text, empty_text),
+                            run_time=0.2,
                         )
 
-                        masked_blocks.append(i)
+                    # Clean up token visualizations
+                    self.play(
+                        *[FadeOut(tv) for tv in token_visuals], FadeOut(token_conf_text)
+                    )
 
-                # Second pass: Parallel unmasking and resampling
-                if masked_blocks:
-                    unmask_text = Text("Resampling masked blocks...", font_size=24)
+                    # Regeneration phase
+                    unmask_text = Text(
+                        "Partially regenerating blocks based on token confidence...",
+                        font_size=24,
+                    )
                     unmask_text.next_to(explanation, UP, buff=0.5)
                     self.play(Write(unmask_text))
 
@@ -207,75 +286,93 @@ class BackMasker(Scene):
                     self.play(*[Create(h) for h in highlights], run_time=0.5)
                     self.wait(0.5)
 
-                    # Gradually unmask all blocks in parallel
-                    for step in range(3):  # Show iterative improvement
+                    # Regenerate with higher scores, but maintain partial regeneration visualization
+                    for i in masked_blocks:
+                        # Significantly improve all scores
+                        if i == 0:
+                            new_score = 0.92  # First block gets very high score
+                        elif i == 1:
+                            new_score = 0.88  # Second block gets high score
+                        else:  # i == 2
+                            new_score = 0.85  # Third block gets much better score
+
+                        block_scores[i] = new_score
+                        new_score_text = Text(f"{new_score:.2f}", font_size=20)
+                        new_score_text.next_to(blocks[i], DOWN, buff=0.1)
+
+                        # Update visualization - show partial regeneration
+                        # Some sections become more visible than others based on token confidence
                         animations = []
 
-                        for i in masked_blocks:
-                            # Partially unmask
-                            new_opacity = mask_indicators[i].get_fill_opacity() * 0.6
-
-                            # Improve score gradually - higher improvement in second pass
-                            if i == 2:  # The problematic block gets a big improvement
-                                new_score = (
-                                    0.4 + (step + 1) * 0.15
-                                )  # Gradually improve to ~0.85
-                            else:  # Other blocks get smaller improvements
-                                improvement = (0.95 - block_scores[i]) * (1 - step / 3)
-                                new_score = block_scores[i] + improvement
-
-                            block_scores[i] = new_score
-
-                            # Only show score text in final step
-                            if step == 2:
-                                new_score_text = Text(f"{new_score:.2f}", font_size=20)
-                            else:
-                                new_score_text = Text("", font_size=20)
-
-                            new_score_text.next_to(blocks[i], DOWN, buff=0.1)
-
-                            # Update visualization - gradually turn from black to gray
-                            # Higher score = more gray (more unmasked)
-                            gray_level = (
-                                new_score * 0.6
-                            )  # Scale to make visual difference more apparent
-
-                            animations.extend(
-                                [
-                                    mask_indicators[i].animate.set_fill(
-                                        opacity=1.0 - new_score
-                                    ),
-                                    blocks[i].animate.set_fill(
-                                        GRAY, opacity=gray_level
-                                    ),
-                                    Transform(blocks[i].score_text, new_score_text),
-                                ]
+                        # Update the partial mask sections with new opacities
+                        for j, section in enumerate(mask_indicators[i]):
+                            section_conf = np.mean(
+                                token_confidences[i][j * 5 : (j + 1) * 5]
+                            )
+                            # Higher confidence and higher score = less masking
+                            new_opacity = (1.0 - new_score) * (1.1 - section_conf)
+                            animations.append(
+                                section.animate.set_fill(opacity=new_opacity)
                             )
 
-                        self.play(*animations, run_time=0.8)
+                        # Update block color and score
+                        animations.extend(
+                            [
+                                blocks[i].animate.set_fill(
+                                    GRAY, opacity=new_score * 0.6
+                                ),
+                                Transform(blocks[i].score_text, new_score_text),
+                            ]
+                        )
+
+                        self.play(*animations, run_time=1.0)
 
                     self.play(*[FadeOut(h) for h in highlights], run_time=0.3)
                     self.play(FadeOut(unmask_text))
+                    self.wait(1)
 
-                self.play(FadeOut(explanation))
+                    # Add explanation about partial regeneration
+                    partial_regen_text = Text(
+                        "Only low-confidence tokens were regenerated", font_size=24
+                    )
+                    partial_regen_text.next_to(explanation, UP, buff=0.5)
+                    self.play(Write(partial_regen_text))
+                    self.wait(1.5)
+                    self.play(FadeOut(partial_regen_text), FadeOut(explanation))
 
-        # Final state
-        final_text = Text("Generation Complete", font_size=30)
-        final_text.to_edge(DOWN, buff=1)
-        self.play(Write(final_text))
+                current_position += 1
 
-        # Show average score
-        avg_score = np.mean(block_scores)
-        avg_text = Text(f"Average Score: {avg_score:.2f}", font_size=24)
-        avg_text.next_to(final_text, UP, buff=0.5)
-        self.play(Write(avg_text))
+            # No need for additional backmasking since we already did it after block 3
+            if current_position == num_blocks:
+                # Final state
+                final_text = Text("Generation Complete", font_size=30)
+                final_text.to_edge(DOWN, buff=1)
+                self.play(Write(final_text))
 
-        # Show comparison with and without backmasking
-        comparison_text = Text("Backmasking improves average quality", font_size=24)
-        comparison_text.next_to(avg_text, UP, buff=0.5)
-        self.play(Write(comparison_text))
+                # Show average score
+                avg_score = np.mean(block_scores)
+                avg_text = Text(f"Average Score: {avg_score:.2f}", font_size=24)
+                avg_text.next_to(final_text, UP, buff=0.5)
+                self.play(Write(avg_text))
+
+                # Show comparison with and without backmasking
+                comparison_text = Text(
+                    "Partial regeneration improved quality while preserving good content",
+                    font_size=24,
+                )
+                comparison_text.next_to(avg_text, UP, buff=0.5)
+                self.play(Write(comparison_text))
 
         self.wait(2)
+        self.play(FadeOut(final_text), FadeOut(avg_text), FadeOut(comparison_text))
+
+        # Run time comparison
+        runtime_title = Text("Efficiency of Partial Regeneration", font_size=30)
+        runtime_title.to_edge(UP, buff=1)
+        self.play(Write(runtime_title))
+
+        # Create a simple bar chart comparing full vs partial regeneration
+        bar_labels = ["Full Regeneration", "Partial Regeneration"]
 
     def calculate_backmasking_probs(
         self, block_scores, backmasking_alpha=5.0, min_prob=0.01
