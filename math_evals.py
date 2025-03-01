@@ -57,7 +57,7 @@ Is the model's answer correct? Consider the following:
 2. The reasoning should be mathematically sound
 3. Minor formatting differences are acceptable
 
-Respond with ONLY "Correct" or "Incorrect" followed by a brief explanation.
+Respond with ONLY "orrect" or "Incorrect" followed by a brief explanation.
 """
 
     try:
