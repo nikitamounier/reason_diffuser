@@ -17,6 +17,7 @@ RUN pip3 install --no-cache-dir \
     transformers_stream_generator==0.0.4
 
 # Create working directory and copy files
+RUN pip3 install pandas
 WORKDIR /app
 
 # Copy all necessary files
@@ -24,6 +25,8 @@ COPY llada_main.py .
 COPY generate.py .
 COPY generate_vanilla_prm.py .
 COPY load_dataset.py .
+COPY gsm8k_test_data.csv .
+
 
 
 # Run the application

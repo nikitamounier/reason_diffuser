@@ -4,6 +4,7 @@ from transformers import AutoTokenizer, AutoModelForCausalLM, AutoModel
 from generate_vanilla_prm import generate as generateVanillaPRM
 from generate import generate as generateRawDiffusion
 from load_dataset import getTestDataPrefix
+import pandas as pd
 
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -29,7 +30,10 @@ prm_model = (
 
 def run_inference():
     # Load test data
-    questions, answers = getTestDataPrefix()
+
+    df = pd.read_csv("gsm8k_test_data.csv")
+    questions = df["question"].tolist()
+    answers = df["answer"].tolist()
 
     for i, (question, answer) in enumerate(zip(questions, answers)):
         print(f"\n=== Problem {i+1} ===")
