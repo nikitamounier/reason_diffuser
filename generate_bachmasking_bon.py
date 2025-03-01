@@ -148,10 +148,10 @@ def compute_block_score(block_text, prompt_text, prm_model, prm_tokenizer):
         The PRM score for this block
     """
     # Split the text into steps (assuming double line breaks separate steps)
-    steps_text = block_text.split("\n\n")
+    # steps_text = block_text.split("\n\n")
 
     # Join with the special token as required by PRM
-    formatted_text = "<extra_0>".join(steps_text) + "<extra_0>"
+    formatted_text = "<extra_0>".join(block_text) + "<extra_0>"
 
     # Create the system prompt
     system = "Please reason step by step, and put your final answer within \\boxed{}."
