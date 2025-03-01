@@ -205,9 +205,7 @@ def recompute_all_block_scores(x, prompt, prompt_text, tokenizer, prm_model, prm
     Returns:
         List of updated PRM scores for each block
     """
-    max_content_idx = torch.max(torch.where(x != mask_id)[1]).item() + 1
-    num_blocks = min((max_content_idx - prompt.shape[1] + block_length - 1) // block_length, 
-                     (x.shape[1] - prompt.shape[1]) // block_length)
+    num_blocks = (x.shape[1] - prompt.shape[1]) // block_length
     updated_scores = []
     
     for block_idx in range(num_blocks):
