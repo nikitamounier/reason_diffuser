@@ -4,6 +4,7 @@ ds = load_dataset("gsm8k", "main")
 
 
 def getTestDataPrefix(howmany=10):
+    ds = load_dataset("gsm8k", "main")
     questions = []
     answers = []
 
