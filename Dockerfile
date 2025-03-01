@@ -24,7 +24,6 @@ WORKDIR /app
 COPY llada_main.py .
 COPY generate.py .
 COPY generate_vanilla_prm.py .
-COPY load_dataset.py .
 COPY gsm8k_test_data.csv .
 
 
