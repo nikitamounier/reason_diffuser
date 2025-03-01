@@ -578,7 +578,7 @@ def main():
     parser.add_argument("--steps", type=int, default=128, help="Number of sampling steps")
     parser.add_argument("--gen_length", type=int, default=128, help="Length of generated text")
     parser.add_argument("--block_length", type=int, default=32, help="Block length for semi-autoregressive generation")
-    parser.add_argument("--temperature", type=float, default=0.0, help="Sampling temperature")
+    parser.add_argument("--temperature", type=float, default=0.3, help="Sampling temperature")
     parser.add_argument("--cfg_scale", type=float, default=0.0, help="Classifier-free guidance scale")
     parser.add_argument("--remasking", type=str, default="low_confidence", 
                         choices=["low_confidence", "random"], help="Remasking strategy")
