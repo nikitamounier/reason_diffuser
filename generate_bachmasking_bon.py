@@ -282,7 +282,7 @@ def generate(
         f"  - Backmasking parameters: Alpha={backmasking_alpha}, Intensity={backmasking_intensity}"
     )
     print(
-        f"  - Backmasking frequency: {backmasking_xfrequency}, Threshold: {backmasking_threshold}"
+        f"  - Backmasking frequency: {backmasking_frequency}, Threshold: {backmasking_threshold}"
     )
     print(f"  - Global demasking: {global_demasking}")
     print(f"  - Max retry attempts: {max_retry_attempts}")
