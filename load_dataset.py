@@ -18,3 +18,6 @@ def save_to_csv():
 
     df = pd.DataFrame({"question": questions, "answer": answers})
     df.to_csv("math_test_data.csv", index=False)
+
+
+save_to_csv()
