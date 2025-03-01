@@ -151,7 +151,7 @@ def compute_block_score(block_text, prompt_text, prm_model, prm_tokenizer):
     # steps_text = block_text.split("\n\n")
 
     # Join with the special token as required by PRM
-    formatted_text = "<extra_0>"+ block_text + "<extra_0>"
+    formatted_text = "<extra_0>" + block_text + "<extra_0>"
 
     # Create the system prompt
     system = "Please reason step by step, and put your final answer within \\boxed{}."
@@ -282,7 +282,7 @@ def generate(
         f"  - Backmasking parameters: Alpha={backmasking_alpha}, Intensity={backmasking_intensity}"
     )
     print(
-        f"  - Backmasking frequency: {backmasking_frequency}, Threshold: {backmasking_threshold}"
+        f"  - Backmasking frequency: {backmasking_xfrequency}, Threshold: {backmasking_threshold}"
     )
     print(f"  - Global demasking: {global_demasking}")
     print(f"  - Max retry attempts: {max_retry_attempts}")
