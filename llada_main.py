@@ -1,6 +1,6 @@
 # Load required libraries
 import torch
-from transformers import AutoTokenizer, AutoModelForCausalLM
+from transformers import AutoTokenizer, AutoModelForCausalLM, AutoModel
 from generate import generate
 
 
@@ -15,6 +15,15 @@ model = AutoModelForCausalLM.from_pretrained(
 )
 model = model.to(device)
 prompt = "Lily can run 12 kilometers per hour for 4 hours. After that, she runs 6 kilometers per hour. How many kilometers can she run in 8 hours?"
+prm_model_name = "Qwen/Qwen2.5-Math-PRM-7B"
+prm_tokenizer = AutoTokenizer.from_pretrained(prm_model_name, trust_remote_code=True)
+prm_model = (
+    AutoModel.from_pretrained(
+        prm_model_name, torch_dtype=torch.bfloat16, trust_remote_code=True
+    )
+    .to(device)
+    .eval()
+)
 
 
 def run_inference(prompt):
@@ -31,6 +40,9 @@ def run_inference(prompt):
     out = generate(
         model,
         input_ids,
+        prm_model=prm_model,
+        tokenizer=tokenizer,
+        prm_tokenizer=prm_tokenizer,
         steps=128,
         gen_length=128,
         block_length=32,
