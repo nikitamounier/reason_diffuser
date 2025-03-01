@@ -6,9 +6,9 @@ from manim import *
 class BackMasker(Scene):
     def construct(self):
         # Configuration
-        num_blocks = 15
+        num_blocks = 4  # Reduced to 4 blocks to fit on screen
         block_length = 32
-        backmasking_frequency = 5
+        backmasking_frequency = 2  # Adjusted for fewer blocks
         backmasking_threshold = 0.4
         backmasking_alpha = 5.0
         backmasking_intensity = 0.5
@@ -26,24 +26,26 @@ class BackMasker(Scene):
 
         for i in range(num_blocks):
             # Create main block (initially all masked/black)
-            block = Rectangle(height=1, width=2, fill_opacity=0.5, fill_color=BLACK)
+            block = Rectangle(
+                height=1, width=3, fill_opacity=0.5, fill_color=BLACK
+            )  # Made wider
             block.set_stroke(GRAY, 2)
 
             # Create mask overlay (initially fully visible)
             mask = Rectangle(
-                height=1, width=2, fill_opacity=0.8, fill_color=BLACK, stroke_opacity=0
+                height=1, width=3, fill_opacity=0.8, fill_color=BLACK, stroke_opacity=0
             )
             mask.move_to(block.get_center())
 
             if i > 0:
-                block.next_to(blocks[-1], RIGHT, buff=0.2)
-                mask.next_to(blocks[-1], RIGHT, buff=0.2)
+                block.next_to(blocks[-1], RIGHT, buff=0.5)  # Increased buffer
+                mask.next_to(blocks[-1], RIGHT, buff=0.5)
 
             blocks.append(block)
             mask_indicators.append(mask)
 
-            # Random initial score (not shown since blocks start masked)
-            score = np.random.uniform(0.1, 0.3)
+            # Initial score (not shown since blocks start masked)
+            score = 0.0  # Will be set during generation
             block_scores.append(score)
 
             # Add score text (initially empty since blocks are masked)
@@ -82,6 +84,13 @@ class BackMasker(Scene):
 
         self.play(FadeIn(legend_group))
 
+        # Add explanation for gray shading
+        shading_explanation = Text(
+            "Gray shading represents how unmasked a block is", font_size=16
+        )
+        shading_explanation.next_to(legend_group, UP, buff=0.5)
+        self.play(FadeIn(shading_explanation))
+
         # Simulation loop
         current_position = 0
         while current_position < num_blocks:
@@ -93,31 +102,48 @@ class BackMasker(Scene):
                     run_time=0.5,
                 )
 
-                # Update score
-                new_score = np.random.uniform(0.4, 0.8)
+                # Set predefined scores for demonstration
+                if current_position < 2:
+                    # First 2 blocks have high scores
+                    new_score = np.random.uniform(0.8, 0.95)
+                elif current_position == 2:
+                    # 3rd block has low score
+                    new_score = 0.4
+                else:
+                    # Last block has varied score
+                    new_score = np.random.uniform(0.6, 0.9)
+
                 block_scores[current_position] = new_score
                 new_score_text = Text(f"{new_score:.2f}", font_size=20)
                 new_score_text.next_to(blocks[current_position], DOWN, buff=0.1)
 
-                # Unmask based on score quality
-                mask_opacity = max(0.1, 0.9 - new_score)  # Higher score = less mask
+                # Unmask based on score quality - higher score = more gray (less masked)
+                # For a score of 0.4, it should be mostly black with a tinge of gray
+                # For scores of 0.8-0.9, they should be mostly gray (mostly unmasked)
+                gray_level = (
+                    new_score * 0.6
+                )  # Scale to make visual difference more apparent
+                mask_opacity = 1.0 - new_score  # Higher score = less mask
 
                 self.play(
                     Transform(blocks[current_position].score_text, new_score_text),
                     mask_indicators[current_position].animate.set_fill(
                         opacity=mask_opacity
                     ),
-                    blocks[current_position].animate.set_fill(GRAY, opacity=0.5),
+                    blocks[current_position].animate.set_fill(GRAY, opacity=gray_level),
                     run_time=0.5,
                 )
 
                 current_position += 1
 
-            # Apply backmasking only if current block has low quality (PRM < 0.5)
+            # Apply backmasking if we've seen a low quality block (even if current one is good)
             should_backmask = False
-            if current_position > 0 and current_position % backmasking_frequency == 0:
-                # Check if the most recent block has a low score
-                if block_scores[current_position - 1] < 0.5:
+            if current_position > 0:
+                # Check if any previous block has a low score
+                if any(
+                    score <= backmasking_threshold
+                    for score in block_scores[:current_position]
+                ):
                     should_backmask = True
 
             if should_backmask or current_position == num_blocks:
@@ -128,7 +154,8 @@ class BackMasker(Scene):
 
                 # Create a text explanation
                 explanation = Text(
-                    f"Backmasking after position {current_position}", font_size=24
+                    f"Backmasking after position {current_position} due to low quality block",
+                    font_size=24,
                 )
                 explanation.to_edge(DOWN, buff=1)
                 self.play(Write(explanation))
@@ -138,15 +165,21 @@ class BackMasker(Scene):
                 for i in range(current_position):
                     mask_probability = backmasking_probs[i]
 
-                    # Apply masking only to low-quality blocks
-                    if block_scores[i] < backmasking_threshold:
+                    # Always mask the low-quality block (position 2 with score 0.4)
+                    # Also mask some previous blocks even if they had good scores
+                    if block_scores[i] < backmasking_threshold or (
+                        np.random.random() < mask_probability
+                        and i < current_position - 1
+                    ):
                         # Calculate mask opacity based on how bad the score is
-                        mask_opacity = 0.8 * (1 - block_scores[i])
+                        mask_opacity = 0.9 * (1 - block_scores[i])
 
                         # Visualize masking by showing black overlay
                         self.play(
                             mask_indicators[i].animate.set_fill(opacity=mask_opacity),
-                            blocks[i].animate.set_fill(BLACK, opacity=0.5),
+                            blocks[i].animate.set_fill(
+                                BLACK, opacity=0.2
+                            ),  # Very little gray for masked blocks
                             run_time=0.3,
                         )
 
@@ -183,8 +216,14 @@ class BackMasker(Scene):
                             new_opacity = mask_indicators[i].get_fill_opacity() * 0.6
 
                             # Improve score gradually - higher improvement in second pass
-                            improvement = (0.95 - block_scores[i]) * (1 - step / 3)
-                            new_score = block_scores[i] + improvement
+                            if i == 2:  # The problematic block gets a big improvement
+                                new_score = (
+                                    0.4 + (step + 1) * 0.15
+                                )  # Gradually improve to ~0.85
+                            else:  # Other blocks get smaller improvements
+                                improvement = (0.95 - block_scores[i]) * (1 - step / 3)
+                                new_score = block_scores[i] + improvement
+
                             block_scores[i] = new_score
 
                             # Only show score text in final step
@@ -196,12 +235,15 @@ class BackMasker(Scene):
                             new_score_text.next_to(blocks[i], DOWN, buff=0.1)
 
                             # Update visualization - gradually turn from black to gray
-                            gray_level = min(0.5 + step * 0.15, 0.8)
+                            # Higher score = more gray (more unmasked)
+                            gray_level = (
+                                new_score * 0.6
+                            )  # Scale to make visual difference more apparent
 
                             animations.extend(
                                 [
                                     mask_indicators[i].animate.set_fill(
-                                        opacity=new_opacity
+                                        opacity=1.0 - new_score
                                     ),
                                     blocks[i].animate.set_fill(
                                         GRAY, opacity=gray_level

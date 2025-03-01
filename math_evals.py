@@ -85,15 +85,30 @@ def run_math_evaluation():
     answers = df["answer"].tolist()
 
     # Limit to a reasonable number for evaluation
-    max_problems = 20
+    max_problems = 50
     questions = questions[:max_problems]
     answers = answers[:max_problems]
 
     results = {
-        "PRM": {"correct": 0, "total": 0, "evaluations": []},
-        "Raw Diffusion": {"correct": 0, "total": 0, "evaluations": []},
-        "Backmasking": {"correct": 0, "total": 0, "evaluations": []},
-        "Backmasking Bon": {"correct": 0, "total": 0, "evaluations": []},
+        "PRM": {"correct": 0, "total": 0, "evaluations": [], "running_accuracy": []},
+        "Raw Diffusion": {
+            "correct": 0,
+            "total": 0,
+            "evaluations": [],
+            "running_accuracy": [],
+        },
+        "Backmasking": {
+            "correct": 0,
+            "total": 0,
+            "evaluations": [],
+            "running_accuracy": [],
+        },
+        "Backmasking Bon": {
+            "correct": 0,
+            "total": 0,
+            "evaluations": [],
+            "running_accuracy": [],
+        },
     }
 
     for i, (question, answer) in enumerate(
@@ -213,7 +228,8 @@ def run_math_evaluation():
         print(f"Backmasking: {backmasking_eval}")
         print(f"Backmasking Bon: {backmasking_bon_eval}")
 
-        # Update results
+        # Update results and calculate running accuracy
+        print("\n=== Running Accuracy ===")
         for model_name, eval_result in [
             ("PRM", prm_eval),
             ("Raw Diffusion", raw_eval),
@@ -223,6 +239,16 @@ def run_math_evaluation():
             results[model_name]["total"] += 1
             if eval_result.startswith("Correct"):
                 results[model_name]["correct"] += 1
+
+            # Calculate running accuracy (avoid divide by zero)
+            accuracy = (
+                results[model_name]["correct"] / results[model_name]["total"]
+            ) * 100
+            results[model_name]["running_accuracy"].append(accuracy)
+
+            print(
+                f"{model_name}: {accuracy:.2f}% ({results[model_name]['correct']}/{results[model_name]['total']})"
+            )
 
             results[model_name]["evaluations"].append(
                 {
@@ -249,7 +275,7 @@ def run_math_evaluation():
         total = results[model_name]["total"]
         accuracy = (correct / total) * 100 if total > 0 else 0
         results[model_name]["accuracy"] = accuracy
-        print(f"{model_name} Accuracy: {accuracy:.2f}% ({correct}/{total})")
+        print(f"{model_name} Final Accuracy: {accuracy:.2f}% ({correct}/{total})")
 
     # Save final results
     with open("math_eval_results.json", "w") as f:

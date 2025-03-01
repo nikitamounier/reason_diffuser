@@ -18,6 +18,13 @@ class BackmaskingSimulation(Scene):
         title.to_edge(UP)
         self.play(Write(title))
 
+        # Add explanation about shading
+        shading_explanation = Text(
+            "Block shading indicates generation progress", font_size=20
+        )
+        shading_explanation.next_to(title, DOWN, buff=0.3)
+        self.play(Write(shading_explanation))
+
         # Create blocks
         blocks = []
         block_scores = []
@@ -48,6 +55,9 @@ class BackmaskingSimulation(Scene):
         self.play(FadeIn(block_group))
         self.wait(1)
 
+        # Fade out the shading explanation after blocks are shown
+        self.play(FadeOut(shading_explanation))
+
         # Simulation loop
         for step in range(num_blocks // backmasking_frequency):
             backmasking_step = (step + 1) * backmasking_frequency
@@ -74,6 +84,30 @@ class BackmaskingSimulation(Scene):
                     self.play(
                         Transform(blocks[i].score_text, new_score_text), run_time=0.5
                     )
+
+                    # Immediately check if we need to regenerate this block
+                    if new_score < backmasking_threshold:
+                        # Visualize backmasking
+                        self.play(
+                            blocks[i].animate.set_fill(RED, opacity=0.7), run_time=0.3
+                        )
+
+                        # Simulate regeneration
+                        self.wait(0.5)
+                        regenerated_score = np.random.uniform(
+                            0.4, 0.9
+                        )  # Better score after regeneration
+                        block_scores[i] = regenerated_score
+                        regenerated_score_text = Text(
+                            f"{regenerated_score:.2f}", font_size=20
+                        )
+                        regenerated_score_text.next_to(blocks[i], DOWN, buff=0.1)
+
+                        self.play(
+                            blocks[i].animate.set_fill(BLUE, opacity=0.5),
+                            Transform(blocks[i].score_text, regenerated_score_text),
+                            run_time=0.5,
+                        )
 
             # Check if we need to apply backmasking
             if backmasking_step <= num_blocks:
