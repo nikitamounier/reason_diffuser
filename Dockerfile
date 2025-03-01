@@ -27,7 +27,7 @@ COPY generate_vanilla_prm.py .
 COPY gsm8k_test_data.csv .
 COPY generate_backmasking.py .
 COPY llada_main_bon.py .
-
+COPY generate_bachmasking_bon.py . 
 
 # Run the application
 CMD ["python3", "llada_main_bon.py"]
