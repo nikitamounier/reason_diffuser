@@ -111,7 +111,7 @@ def run_inference():
             backmasking_intensity=0.5,
             global_demasking=True,
             backmasking_frequency=3,
-            backmasking_threshold=0.4,
+            backmasking_threshold=0.6,
         )
         backmasking_response = tokenizer.batch_decode(
             backmasking_out[:, input_ids.shape[1] :], skip_special_tokens=True
@@ -133,7 +133,7 @@ def run_inference():
             backmasking_intensity=1,
             global_demasking=True,
             backmasking_frequency=3,
-            backmasking_threshold=0.4,
+            backmasking_threshold=0.6,
             max_retry_attempts=5,
         )
         backmasking_bon_response = tokenizer.batch_decode(
