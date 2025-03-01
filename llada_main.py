@@ -98,9 +98,9 @@ if __name__ == "__main__":
     # Load tokenizer and model from saved files
     tokenizer = torch.load("/data/tokenizer.pt")
     model = torch.load("/data/model.pt")
-    model = model.to(device)
+    model = AutoModelForCausalLM.from_pretrained(model).to(device)
 
     # Load PRM tokenizer and model from saved files
     prm_tokenizer = torch.load("/data/prm_tokenizer.pt")
-    prm_model = torch.load("/data/prm_model.pt")
+    prm_model = AutoModel.from_pretrained(torch.load("/data/prm_model.pt")).to(device)
     run_inference(model, prm_model, tokenizer, prm_tokenizer)
