@@ -16,6 +16,7 @@ tokenizer = AutoTokenizer.from_pretrained(
 model = AutoModelForCausalLM.from_pretrained(
     "GSAI-ML/LLaDA-8B-Instruct", trust_remote_code=True
 )
+
 model = model.to(device)
 prm_model_name = "Qwen/Qwen2.5-Math-PRM-7B"
 prm_tokenizer = AutoTokenizer.from_pretrained(prm_model_name, trust_remote_code=True)
@@ -26,6 +27,11 @@ prm_model = (
     .to(device)
     .eval()
 )
+# Save models and tokenizers to /data
+torch.save(model.state_dict(), "/data/model.pt")
+torch.save(tokenizer, "/data/tokenizer.pt")
+torch.save(prm_model.state_dict(), "/data/prm_model.pt")
+torch.save(prm_tokenizer, "/data/prm_tokenizer.pt")
 
 
 def run_inference():
