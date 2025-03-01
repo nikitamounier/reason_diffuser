@@ -3,7 +3,7 @@ FROM pytorch/pytorch:2.1.0-cuda12.1-cudnn8-runtime
 WORKDIR /app
 
 # Install dependencies
-RUN pip install --no-cache-dir transformers pandas matplotlib 
+RUN pip install --no-cache-dir transformers pandas matplotlib groq
 
 # Copy necessary files
 COPY math_evals.py /app/
