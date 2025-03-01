@@ -6,7 +6,8 @@ def load_math_dataset():
     answers = []
     # Load the mathematics dataset from HuggingFace
     ds = load_dataset("HuggingFaceH4/MATH-500")
-    for i in range(len(ds["test"][0])):
+    print(len(ds["test"]))
+    for i in range(len(ds["test"])):
         questions.append(ds["test"][i]["problem"])
         answers.append(ds["test"][i]["answer"])
     return questions, answers
