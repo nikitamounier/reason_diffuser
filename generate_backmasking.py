@@ -1,6 +1,7 @@
 import torch
 import numpy as np
 import torch.nn.functional as F
+import argparse
 
 from transformers import AutoTokenizer, AutoModel, AutoModelForCausalLM
 
@@ -510,3 +511,110 @@ def generate(
                 print(f"Updated block scores after demasking: {block_scores}")
 
     return x
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Generate text with backmasking")
+    parser.add_argument("--device", type=str, default="cuda", help="Device to run inference on")
+    parser.add_argument("--prompt", type=str, default="Lily can run 12 kilometers per hour for 4 hours. After that, she runs 6 kilometers per hour. How many kilometers can she run in 8 hours?", 
+                        help="Prompt to generate from")
+    parser.add_argument("--model_path", type=str, default="GSAI-ML/LLaDA-8B-Instruct", 
+                        help="Path to the main model")
+    parser.add_argument("--prm_model_path", type=str, default="Qwen/Qwen2.5-Math-PRM800K", 
+                        help="Path to the PRM model")
+    parser.add_argument("--steps", type=int, default=128, help="Number of sampling steps")
+    parser.add_argument("--gen_length", type=int, default=128, help="Length of generated text")
+    parser.add_argument("--block_length", type=int, default=32, help="Block length for semi-autoregressive generation")
+    parser.add_argument("--temperature", type=float, default=0.0, help="Sampling temperature")
+    parser.add_argument("--cfg_scale", type=float, default=0.0, help="Classifier-free guidance scale")
+    parser.add_argument("--remasking", type=str, default="low_confidence", 
+                        choices=["low_confidence", "random"], help="Remasking strategy")
+    parser.add_argument("--backmasking_alpha", type=float, default=5.0, 
+                        help="Controls steepness of exponential decay for backmasking probabilities")
+    parser.add_argument("--backmasking_intensity", type=float, default=0.5, 
+                        help="Overall intensity of backmasking (0-1)")
+    parser.add_argument("--global_demasking", action="store_true", default=True, 
+                        help="Whether to demask entire sequence after backmasking")
+    parser.add_argument("--backmasking_frequency", type=int, default=3, 
+                        help="Apply backmasking every N blocks")
+    parser.add_argument("--backmasking_threshold", type=float, default=0.4, 
+                        help="Apply backmasking if any block scores below this threshold")
+    
+    args = parser.parse_args()
+    
+    # Set device
+    device = args.device
+    
+    # Load main model and tokenizer
+    print(f"Loading main model from {args.model_path}...")
+    model = (
+        AutoModel.from_pretrained(
+            args.model_path,
+            trust_remote_code=True,
+            torch_dtype=torch.bfloat16,
+        )
+        .to(device)
+        .eval()
+    )
+    tokenizer = AutoTokenizer.from_pretrained(
+        args.model_path, trust_remote_code=True
+    )
+    
+    # Load PRM model and tokenizer
+    print(f"Loading PRM model from {args.prm_model_path}...")
+    prm_model = (
+        AutoModelForCausalLM.from_pretrained(
+            args.prm_model_path,
+            trust_remote_code=True,
+            torch_dtype=torch.bfloat16,
+        )
+        .to(device)
+        .eval()
+    )
+    prm_tokenizer = AutoTokenizer.from_pretrained(
+        args.prm_model_path, trust_remote_code=True
+    )
+
+    # Prepare prompt
+    print(f"Prompt: {args.prompt}")
+    m = [
+        {"role": "user", "content": args.prompt},
+    ]
+    prompt = tokenizer.apply_chat_template(
+        m, add_generation_prompt=True, tokenize=False
+    )
+
+    input_ids = tokenizer(prompt)["input_ids"]
+    input_ids = torch.tensor(input_ids).to(device).unsqueeze(0)
+
+    # Generate with backmasking
+    print(f"Generating with backmasking (block_length={args.block_length}, steps={args.steps})...")
+    out = generate(
+        model=model,
+        prompt=input_ids,
+        prm_model=prm_model,
+        tokenizer=tokenizer,
+        prm_tokenizer=prm_tokenizer,
+        steps=args.steps,
+        gen_length=args.gen_length,
+        block_length=args.block_length,
+        temperature=args.temperature,
+        cfg_scale=args.cfg_scale,
+        remasking=args.remasking,
+        backmasking_alpha=args.backmasking_alpha,
+        backmasking_intensity=args.backmasking_intensity,
+        global_demasking=args.global_demasking,
+        backmasking_frequency=args.backmasking_frequency,
+        backmasking_threshold=args.backmasking_threshold,
+    )
+    
+    # Print result
+    result = tokenizer.batch_decode(out[:, input_ids.shape[1]:], skip_special_tokens=True)[0]
+    print("\nGenerated solution:")
+    print("=" * 50)
+    print(result)
+    print("=" * 50)
+
+if __name__ == "__main__":
+    main()
+
