@@ -11,9 +11,16 @@ RUN pip3 install --no-cache-dir \
     transformers \
     torch \
     numpy \
-    pandas
+    pandas \
+    accelerate
 
-# Copy and run the application
+# Create working directory
+WORKDIR /app
+
+# Copy all necessary files
 COPY main.py .
+COPY generate.py .
+
+# Run the application
 CMD ["python3", "main.py"]
 
