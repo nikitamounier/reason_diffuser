@@ -43,7 +43,7 @@ torch.save(prm_tokenizer, "/data/prm_tokenizer.pt")
 def run_inference():
     # Load test data
 
-    df = pd.read_csv("gsm8k_test_data.csv")
+    df = pd.read_csv("math_test_data.csv")
     questions = df["question"].tolist()
     answers = df["answer"].tolist()
 
