@@ -2,8 +2,6 @@
 import torch
 from transformers import AutoTokenizer, AutoModelForCausalLM, AutoModel
 from generate_bachmasking_bon import generate as generateBackMaskingBon
-from fastapi import FastAPI, Request
-import uvicorn
 
 # Load required libraries
 import torch
@@ -171,9 +169,4 @@ if __name__ == "__main__":
         .to(device)
         .eval()
     )
-    # Save models and tokenizers to /data
-    torch.save(model.state_dict(), "/data/model.pt")
-    torch.save(tokenizer, "/data/tokenizer.pt")
-    torch.save(prm_model.state_dict(), "/data/prm_model.pt")
-    torch.save(prm_tokenizer, "/data/prm_tokenizer.pt")
     run_inference()
