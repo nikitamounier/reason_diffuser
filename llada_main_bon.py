@@ -1,7 +1,7 @@
 # Load required libraries
 import torch
 from transformers import AutoTokenizer, AutoModelForCausalLM, AutoModel
-from generate_bachmasking_bon import generate as generateBackMaskingBon
+from generate_backmasking_bon import generate as generateBackMaskingBon
 
 # Load required libraries
 import torch
@@ -10,7 +10,7 @@ from generate_vanilla_prm import generate as generateVanillaPRM
 from generate import generate as generateRawDiffusion
 import pandas as pd
 from generate_backmasking import generate as generateBackMasking
-from generate_bachmasking_bon import generate as generateBackMaskingBon
+from generate_backmasking_bon import generate as generateBackMaskingBon
 
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
