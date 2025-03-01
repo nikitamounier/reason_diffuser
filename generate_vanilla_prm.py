@@ -185,7 +185,7 @@ def generate(
             # Split the text into steps (assuming double line breaks separate steps)
             steps_text = block_text.split("\n\n")
             # Join with the special token as required by PRM
-            formatted_text = "<extra_0>".join(steps_text) + "<extra_0>"
+            formatted_text = "<extra_0>"+ steps_text + "<extra_0>"
             decoded_candidates.append(formatted_text)
 
         # Create system and query for PRM context
