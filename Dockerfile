@@ -22,7 +22,8 @@ WORKDIR /app
 # Copy all necessary files
 COPY llada_main.py .
 COPY generate.py .
-COPY prompts.txt .
+COPY generate_vanilla_prm.py .
+COPY load_dataset.py .
 
 
 # Run the application
