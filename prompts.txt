@@ -1,0 +1,5 @@
+1. If a train travels at 80 kilometers per hour for 2.5 hours, then slows to 60 kilometers per hour for 1.5 hours due to track maintenance, how far does it travel in total?
+2. A bakery sells cookies in boxes of 12. If they bake 156 cookies and want to put them all in boxes, how many full boxes will they have and how many cookies will be left over?
+3. Sarah has $245 and wants to buy textbooks that cost $58 each. How many textbooks can she buy, and how much money will she have left?
+4. In a rectangular garden that is 15 meters long and 8 meters wide, a gardener wants to place plants 2 meters apart along the perimeter. How many plants will they need?
+5. A factory produces 350 toys per hour. If they operate for 8 hours per day, how many toys will they produce in 5 working days?

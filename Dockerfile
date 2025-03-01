@@ -11,7 +11,8 @@ RUN pip3 install --no-cache-dir \
     torch==2.1.2 \
     numpy==1.26.3 \
     pandas==2.1.4 \
-    accelerate==0.26.1
+    accelerate==0.26.1 \
+    datasets==2.16.1
 
 # Create working directory
 WORKDIR /app
