@@ -294,16 +294,16 @@ def generate(
 
     prompt_index = x != mask_id
     prompt_text = tokenizer.decode(prompt[0], skip_special_tokens=True)
-    print(f"Prompt: {prompt_text[:100]}{'...' if len(prompt_text) > 100 else ''}")
-    print(f"Prompt length: {prompt.shape[1]} tokens")
+    # print(f"Prompt: {prompt_text[:100]}{'...' if len(prompt_text) > 100 else ''}")
+    # print(f"Prompt length: {prompt.shape[1]} tokens")
 
     assert gen_length % block_length == 0
     num_blocks = gen_length // block_length
-    print(f"Number of blocks: {num_blocks}")
+    # print(f"Number of blocks: {num_blocks}")
 
     assert steps % num_blocks == 0
     block_steps = steps // num_blocks
-    print(f"Steps per block: {block_steps}")
+    # print(f"Steps per block: {block_steps}")
 
     # Store PRM scores for each block
     block_scores = []
@@ -311,9 +311,9 @@ def generate(
     block_indices = []
 
     for num_block in range(num_blocks):
-        print(f"\n{'='*50}")
-        print(f"Processing block {num_block+1}/{num_blocks}")
-        print(f"{'='*50}")
+        # print(f"\n{'='*50}")
+        # print(f"Processing block {num_block+1}/{num_blocks}")
+        # print(f"{'='*50}")
 
         # Initialize variables to store the best block generation
         best_block_score = 0.0
@@ -324,9 +324,9 @@ def generate(
         # Try generating the block up to max_retry_attempts times
         while retry_count < max_retry_attempts and not meets_threshold:
             if retry_count > 0:
-                print(
+                """print(
                     f"\nRetry attempt {retry_count}/{max_retry_attempts} for block {num_block+1}"
-                )
+                )"""
                 # Reset the current block to all mask tokens
                 x[
                     :,
@@ -406,16 +406,16 @@ def generate(
                 skip_special_tokens=True,
             )
 
-            print(
+            """print(
                 f"Block {num_block+1} text sample: {current_block_text[:50]}{'...' if len(current_block_text) > 50 else ''}"
-            )
+            )"""
 
             # Compute score for this block
-            print(f"Computing PRM score for block {num_block+1}...")
+            # print(f"Computing PRM score for block {num_block+1}...")
             block_score = compute_block_score(
                 current_block_text, prompt_text, prm_model, prm_tokenizer
             )
-            print(f"Block {num_block+1} PRM score: {block_score:.4f}")
+            # print(f"Block {num_block+1} PRM score: {block_score:.4f}")
 
             # Check if this attempt is better than previous ones
             if block_score > best_block_score:
@@ -430,18 +430,18 @@ def generate(
             # Check if we've met the threshold
             if block_score >= backmasking_threshold:
                 meets_threshold = True
-                print(
+                """print(
                     f"Block {num_block+1} meets quality threshold with score {block_score:.4f}"
-                )
+                )"""
                 break
 
             retry_count += 1
 
         # If we've tried multiple times and none met the threshold, use the best one
         if retry_count > 0 and not meets_threshold:
-            print(
+            """print(
                 f"After {retry_count} attempts, using best generation with score {best_block_score:.4f}"
-            )
+            )"""
             x[
                 :,
                 prompt.shape[1]
@@ -473,18 +473,18 @@ def generate(
         )
 
         if should_backmask:
-            print(f"\n{'*'*50}")
+            """print(f"\n{'*'*50}")
             print(f"Applying backmasking after block {num_block+1}")
             print(f"Current block scores: {[f'{score:.4f}' for score in block_scores]}")
-            print(f"{'*'*50}")
+            print(f"{'*'*50}")"""
 
             # Calculate backmasking probabilities for all blocks based on their scores
             backmasking_probs = calculate_backmasking_probs(
                 block_scores, backmasking_alpha
             )
-            print(
+            """print(
                 f"Backmasking probabilities: {[f'{prob:.4f}' for prob in backmasking_probs]}"
-            )
+            )"""
 
             # Determine which tokens to backmask
             mask = get_backmasking_tokens(
@@ -498,12 +498,12 @@ def generate(
             # Apply the mask
             tokens_backmasked = mask.sum().item()
             x[mask] = mask_id
-            print(f"Backmasked {tokens_backmasked} tokens")
+            # print(f"Backmasked {tokens_backmasked} tokens")
 
             # Now demask the sequence again
             if global_demasking:
                 # Global demasking: demask the entire sequence at once
-                print(f"\nStarting global demasking...")
+                # print(f"\nStarting global demasking...")
                 mask_index = x == mask_id
 
                 # Number of total masked tokens
@@ -575,7 +575,7 @@ def generate(
                         # print(f"    Unmasked {tokens_unmasked} tokens in this step")
 
                     # After global demasking, recompute all block scores
-                    print(f"\nRecomputing all block scores after global demasking...")
+                    # print(f"\nRecomputing all block scores after global demasking...")
                     block_scores = recompute_all_block_scores(
                         x,
                         prompt,
@@ -585,14 +585,14 @@ def generate(
                         prm_tokenizer,
                         block_length,
                     )
-                    print(
+                    """print(
                         f"Updated block scores: {[f'{score:.4f}' for score in block_scores]}"
-                    )
+                    )"""
             else:
                 # Block-by-block demasking: demask each block separately
-                print(f"\nStarting block-by-block demasking...")
+                # print(f"\nStarting block-by-block demasking...")
                 for block_idx in range(num_block + 1):
-                    print(f"Demasking block {block_idx+1}...")
+                    # print(f"Demasking block {block_idx+1}...")
                     block_mask_index = (
                         x[
                             :,
@@ -680,9 +680,9 @@ def generate(
                             # print(f"    Block {block_idx+1}, Step {i+1}/{block_steps_to_use}: Unmasked {tokens_unmasked} tokens")
 
                 # After block-by-block demasking, recompute all block scores
-                print(
+                """print(
                     f"\nRecomputing all block scores after block-by-block demasking..."
-                )
+                )"""
                 block_scores = recompute_all_block_scores(
                     x,
                     prompt,
@@ -692,13 +692,13 @@ def generate(
                     prm_tokenizer,
                     block_length,
                 )
-                print(
+                """print(
                     f"Updated block scores: {[f'{score:.4f}' for score in block_scores]}"
-                )
+                )"""
 
-    print(f"\n{'='*50}")
-    print(f"Generation complete!")
-    print(f"Final block scores: {[f'{score:.4f}' for score in block_scores]}")
-    print(f"{'='*50}")
+    # print(f"\n{'='*50}")
+    # print(f"Generation complete!")
+    # print(f"Final block scores: {[f'{score:.4f}' for score in block_scores]}")
+    # print(f"{'='*50}")
 
     return x
