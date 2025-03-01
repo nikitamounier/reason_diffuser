@@ -189,7 +189,7 @@ def compute_block_score(block_text, prompt_text, prm_model, prm_tokenizer):
         return 0.0  # If no scores, assign 0
 
 
-def recompute_all_block_scores(x, prompt, prompt_text, tokenizer, prm_model, prm_tokenizer, block_length):
+def recompute_all_block_scores(x, prompt, prompt_text, tokenizer, prm_model, prm_tokenizer, block_length, current_block):
     """
     Recompute PRM scores for all blocks after backmasking and demasking.
     
@@ -205,7 +205,7 @@ def recompute_all_block_scores(x, prompt, prompt_text, tokenizer, prm_model, prm
     Returns:
         List of updated PRM scores for each block
     """
-    num_blocks = (x.shape[1] - prompt.shape[1]) // block_length
+    num_blocks = current_block + 1
     updated_scores = []
     
     for block_idx in range(num_blocks):
@@ -580,6 +580,7 @@ def generate(
                         prm_model,
                         prm_tokenizer,
                         block_length,
+                        num_block
                     )
                     print(
                         f"Updated block scores: {[f'{score:.4f}' for score in block_scores]}"
@@ -687,6 +688,7 @@ def generate(
                     prm_model,
                     prm_tokenizer,
                     block_length,
+                    num_block
                 )
                 print(
                     f"Updated block scores: {[f'{score:.4f}' for score in block_scores]}"
