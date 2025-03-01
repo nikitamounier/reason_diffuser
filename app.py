@@ -9,7 +9,7 @@ import importlib.util
 
 # Import the generate_backmasking module
 spec = importlib.util.spec_from_file_location(
-    "generate_backmasking", "../generate_backmasking.py"
+    "generate_backmasking", "generate_backmasking.py"
 )
 generate_backmasking = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(generate_backmasking)
