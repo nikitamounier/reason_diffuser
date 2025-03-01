@@ -22,5 +22,5 @@ COPY main.py .
 COPY generate.py .
 
 # Run the application
-CMD ["python3", "main.py"]
+CMD ["python3", "llada_main.py"]
 
