@@ -189,10 +189,12 @@ def compute_block_score(block_text, prompt_text, prm_model, prm_tokenizer):
         return 0.0  # If no scores, assign 0
 
 
-def recompute_all_block_scores(x, prompt, prompt_text, tokenizer, prm_model, prm_tokenizer, block_length, current_block):
+def recompute_all_block_scores(
+    x, prompt, prompt_text, tokenizer, prm_model, prm_tokenizer, block_length
+):
     """
     Recompute PRM scores for all blocks after backmasking and demasking.
-    
+
     Args:
         x: The current token sequence
         prompt: The original prompt tokens
@@ -201,13 +203,13 @@ def recompute_all_block_scores(x, prompt, prompt_text, tokenizer, prm_model, prm
         prm_model: The PRM model
         prm_tokenizer: The PRM tokenizer
         block_length: Length of each block
-        
+
     Returns:
         List of updated PRM scores for each block
     """
-    num_blocks = current_block + 1
+    num_blocks = (x.shape[1] - prompt.shape[1]) // block_length
     updated_scores = []
-    
+
     for block_idx in range(num_blocks):
         block_text = tokenizer.decode(
             x[
@@ -218,10 +220,12 @@ def recompute_all_block_scores(x, prompt, prompt_text, tokenizer, prm_model, prm
             ],
             skip_special_tokens=True,
         )
-        
-        block_score = compute_block_score(block_text, prompt_text, prm_model, prm_tokenizer)
+
+        block_score = compute_block_score(
+            block_text, prompt_text, prm_model, prm_tokenizer
+        )
         updated_scores.append(block_score)
-    
+
     return updated_scores
 
 
@@ -580,7 +584,6 @@ def generate(
                         prm_model,
                         prm_tokenizer,
                         block_length,
-                        num_block
                     )
                     print(
                         f"Updated block scores: {[f'{score:.4f}' for score in block_scores]}"
@@ -688,7 +691,6 @@ def generate(
                     prm_model,
                     prm_tokenizer,
                     block_length,
-                    num_block
                 )
                 print(
                     f"Updated block scores: {[f'{score:.4f}' for score in block_scores]}"
