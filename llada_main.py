@@ -10,8 +10,7 @@ from generate_backmasking import generate as generateBackMasking
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
-def run_inference():
-    # Load test data
+def run_inference(model, prm_model, tokenizer, prm_tokenizer):
 
     df = pd.read_csv("gsm8k_test_data.csv")
     questions = df["question"].tolist()
@@ -104,4 +103,4 @@ if __name__ == "__main__":
     # Load PRM tokenizer and model from saved files
     prm_tokenizer = torch.load("/data/prm_tokenizer.pt")
     prm_model = torch.load("/data/prm_model.pt")
-    run_inference()
+    run_inference(model, prm_model, tokenizer, prm_tokenizer)
