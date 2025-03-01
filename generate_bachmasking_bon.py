@@ -151,7 +151,7 @@ def compute_block_score(block_text, prompt_text, prm_model, prm_tokenizer):
     # steps_text = block_text.split("\n\n")
 
     # Join with the special token as required by PRM
-    formatted_text = "<extra_0>" + block_text + "<extra_0>"
+    formatted_text = "<extra_0>"+ block_text + "<extra_0>"
 
     # Create the system prompt
     system = "Please reason step by step, and put your final answer within \\boxed{}."
@@ -248,6 +248,7 @@ def generate(
     global_demasking=True,
     backmasking_frequency=3,  # Apply backmasking every N blocks
     backmasking_threshold=0.4,  # Apply backmasking if any block scores below this threshold
+    max_retry_attempts=5,  # Maximum number of retry attempts per block
 ):
     """
     Args:
@@ -268,6 +269,7 @@ def generate(
         global_demasking: Whether to demask the entire sequence in one go after backmasking (True) or block by block (False).
         backmasking_frequency: Apply backmasking every N blocks (if set to 1, applies after every block).
         backmasking_threshold: Apply backmasking if any block scores below this threshold.
+        max_retry_attempts: Maximum number of retry attempts per block.
     """
     print(f"Starting generation with parameters:")
     print(
@@ -283,6 +285,7 @@ def generate(
         f"  - Backmasking frequency: {backmasking_frequency}, Threshold: {backmasking_threshold}"
     )
     print(f"  - Global demasking: {global_demasking}")
+    print(f"  - Max retry attempts: {max_retry_attempts}")
 
     x = torch.full((1, prompt.shape[1] + gen_length), mask_id, dtype=torch.long).to(
         model.device
@@ -312,84 +315,143 @@ def generate(
         print(f"Processing block {num_block+1}/{num_blocks}")
         print(f"{'='*50}")
 
-        # Process one block at a time
-        block_mask_index = (
+        # Initialize variables to store the best block generation
+        best_block_score = 0.0
+        best_block_tokens = None
+        retry_count = 0
+        meets_threshold = False
+
+        # Try generating the block up to max_retry_attempts times
+        while retry_count < max_retry_attempts and not meets_threshold:
+            if retry_count > 0:
+                print(
+                    f"\nRetry attempt {retry_count}/{max_retry_attempts} for block {num_block+1}"
+                )
+                # Reset the current block to all mask tokens
+                x[
+                    :,
+                    prompt.shape[1]
+                    + num_block * block_length : prompt.shape[1]
+                    + (num_block + 1) * block_length,
+                ] = mask_id
+
+            # Process one block at a time
+            block_mask_index = (
+                x[
+                    :,
+                    prompt.shape[1]
+                    + num_block * block_length : prompt.shape[1]
+                    + (num_block + 1) * block_length :,
+                ]
+                == mask_id
+            )
+            num_transfer_tokens = get_num_transfer_tokens(block_mask_index, block_steps)
+            # print(f"Number of masked tokens in block: {block_mask_index.sum().item()}")
+
+            # Progressively unmask the current block
+            for i in range(block_steps):
+                mask_index = x == mask_id
+                masked_tokens_count = mask_index.sum().item()
+                # print(f"  Step {i+1}/{block_steps}: Remaining masked tokens: {masked_tokens_count}")
+
+                if cfg_scale > 0.0:
+                    un_x = x.clone()
+                    un_x[prompt_index] = mask_id
+                    x_ = torch.cat([x, un_x], dim=0)
+                    logits = model(x_).logits
+                    logits, un_logits = torch.chunk(logits, 2, dim=0)
+                    logits = un_logits + (cfg_scale + 1) * (logits - un_logits)
+                else:
+                    logits = model(x).logits
+
+                logits_with_noise = add_gumbel_noise(logits, temperature=temperature)
+                x0 = torch.argmax(logits_with_noise, dim=-1)  # b, l
+
+                if remasking == "low_confidence":
+                    p = F.softmax(logits.to(torch.float64), dim=-1)
+                    x0_p = torch.squeeze(
+                        torch.gather(p, dim=-1, index=torch.unsqueeze(x0, -1)), -1
+                    )  # b, l
+                elif remasking == "random":
+                    x0_p = torch.rand((x0.shape[0], x0.shape[1]), device=x0.device)
+                else:
+                    raise NotImplementedError(remasking)
+
+                # Only consider tokens in the current block
+                x0_p[:, prompt.shape[1] + (num_block + 1) * block_length :] = -np.inf
+
+                x0 = torch.where(mask_index, x0, x)
+                confidence = torch.where(mask_index, x0_p, -np.inf)
+
+                transfer_index = torch.zeros_like(
+                    x0, dtype=torch.bool, device=x0.device
+                )
+                for j in range(confidence.shape[0]):
+                    _, select_index = torch.topk(
+                        confidence[j], k=num_transfer_tokens[j, i]
+                    )
+                    transfer_index[j, select_index] = True
+                x[transfer_index] = x0[transfer_index]
+                tokens_unmasked = transfer_index.sum().item()
+                # print(f"    Unmasked {tokens_unmasked} tokens in this step")
+
+            # After completing this block, compute its PRM score
+            current_block_text = tokenizer.decode(
+                x[
+                    0,
+                    prompt.shape[1]
+                    + num_block * block_length : prompt.shape[1]
+                    + (num_block + 1) * block_length,
+                ],
+                skip_special_tokens=True,
+            )
+
+            print(
+                f"Block {num_block+1} text sample: {current_block_text[:50]}{'...' if len(current_block_text) > 50 else ''}"
+            )
+
+            # Compute score for this block
+            print(f"Computing PRM score for block {num_block+1}...")
+            block_score = compute_block_score(
+                current_block_text, prompt_text, prm_model, prm_tokenizer
+            )
+            print(f"Block {num_block+1} PRM score: {block_score:.4f}")
+
+            # Check if this attempt is better than previous ones
+            if block_score > best_block_score:
+                best_block_score = block_score
+                best_block_tokens = x[
+                    :,
+                    prompt.shape[1]
+                    + num_block * block_length : prompt.shape[1]
+                    + (num_block + 1) * block_length,
+                ].clone()
+
+            # Check if we've met the threshold
+            if block_score >= backmasking_threshold:
+                meets_threshold = True
+                print(
+                    f"Block {num_block+1} meets quality threshold with score {block_score:.4f}"
+                )
+                break
+
+            retry_count += 1
+
+        # If we've tried multiple times and none met the threshold, use the best one
+        if retry_count > 0 and not meets_threshold:
+            print(
+                f"After {retry_count} attempts, using best generation with score {best_block_score:.4f}"
+            )
             x[
                 :,
                 prompt.shape[1]
                 + num_block * block_length : prompt.shape[1]
-                + (num_block + 1) * block_length :,
-            ]
-            == mask_id
-        )
-        num_transfer_tokens = get_num_transfer_tokens(block_mask_index, block_steps)
-        # print(f"Number of masked tokens in block: {block_mask_index.sum().item()}")
-
-        # Progressively unmask the current block
-        for i in range(block_steps):
-            mask_index = x == mask_id
-            masked_tokens_count = mask_index.sum().item()
-            # print(f"  Step {i+1}/{block_steps}: Remaining masked tokens: {masked_tokens_count}")
-
-            if cfg_scale > 0.0:
-                un_x = x.clone()
-                un_x[prompt_index] = mask_id
-                x_ = torch.cat([x, un_x], dim=0)
-                logits = model(x_).logits
-                logits, un_logits = torch.chunk(logits, 2, dim=0)
-                logits = un_logits + (cfg_scale + 1) * (logits - un_logits)
-            else:
-                logits = model(x).logits
-
-            logits_with_noise = add_gumbel_noise(logits, temperature=temperature)
-            x0 = torch.argmax(logits_with_noise, dim=-1)  # b, l
-
-            if remasking == "low_confidence":
-                p = F.softmax(logits.to(torch.float64), dim=-1)
-                x0_p = torch.squeeze(
-                    torch.gather(p, dim=-1, index=torch.unsqueeze(x0, -1)), -1
-                )  # b, l
-            elif remasking == "random":
-                x0_p = torch.rand((x0.shape[0], x0.shape[1]), device=x0.device)
-            else:
-                raise NotImplementedError(remasking)
-
-            # Only consider tokens in the current block
-            x0_p[:, prompt.shape[1] + (num_block + 1) * block_length :] = -np.inf
-
-            x0 = torch.where(mask_index, x0, x)
-            confidence = torch.where(mask_index, x0_p, -np.inf)
-
-            transfer_index = torch.zeros_like(x0, dtype=torch.bool, device=x0.device)
-            for j in range(confidence.shape[0]):
-                _, select_index = torch.topk(confidence[j], k=num_transfer_tokens[j, i])
-                transfer_index[j, select_index] = True
-            x[transfer_index] = x0[transfer_index]
-            tokens_unmasked = transfer_index.sum().item()
-            # print(f"    Unmasked {tokens_unmasked} tokens in this step")
-
-        # After completing this block, compute its PRM score
-        current_block_text = tokenizer.decode(
-            x[
-                0,
-                prompt.shape[1]
-                + num_block * block_length : prompt.shape[1]
                 + (num_block + 1) * block_length,
-            ],
-            skip_special_tokens=True,
-        )
+            ] = best_block_tokens
+            block_score = best_block_score
 
-        print(
-            f"Block {num_block+1} text sample: {current_block_text[:50]}{'...' if len(current_block_text) > 50 else ''}"
-        )
-
-        # Compute score for this block
-        print(f"Computing PRM score for block {num_block+1}...")
-        block_score = compute_block_score(
-            current_block_text, prompt_text, prm_model, prm_tokenizer
-        )
+        # Add the final score and block indices
         block_scores.append(block_score)
-        print(f"Block {num_block+1} PRM score: {block_score:.4f}")
 
         # Store block indices for this block (used for backmasking later)
         current_block_indices = torch.zeros_like(x, dtype=torch.bool)
@@ -450,9 +512,7 @@ def generate(
                     steps // 2, total_masked
                 )  # Use fewer steps for efficiency
 
-                print(
-                    f"Total masked tokens: {total_masked}, will use {global_steps} steps for demasking"
-                )
+                # print(f"Total masked tokens: {total_masked}, will use {global_steps} steps for demasking")
 
                 if global_steps > 0:
                     # Calculate how many tokens to unmask per step
@@ -464,9 +524,7 @@ def generate(
                         # Update mask index
                         mask_index = x == mask_id
                         masked_tokens_count = mask_index.sum().item()
-                        """print(
-                            f"  Global demasking step {i+1}/{global_steps}: Remaining masked tokens: {masked_tokens_count}"
-                        )"""
+                        # print(f"  Global demasking step {i+1}/{global_steps}: Remaining masked tokens: {masked_tokens_count}")
 
                         if cfg_scale > 0.0:
                             un_x = x.clone()
@@ -546,9 +604,7 @@ def generate(
                     )
 
                     masked_tokens_in_block = block_mask_index.sum().item()
-                    print(
-                        f"  Masked tokens in block {block_idx+1}: {masked_tokens_in_block}"
-                    )
+                    # print(f"  Masked tokens in block {block_idx+1}: {masked_tokens_in_block}")
 
                     if (
                         block_mask_index.sum() > 0
@@ -621,9 +677,7 @@ def generate(
                                 transfer_index[j, select_index] = True
                             x[transfer_index] = x0[transfer_index]
                             tokens_unmasked = transfer_index.sum().item()
-                            """print(
-                                f"    Block {block_idx+1}, Step {i+1}/{block_steps_to_use}: Unmasked {tokens_unmasked} tokens"
-                            )"""
+                            # print(f"    Block {block_idx+1}, Step {i+1}/{block_steps_to_use}: Unmasked {tokens_unmasked} tokens")
 
                 # After block-by-block demasking, recompute all block scores
                 print(
