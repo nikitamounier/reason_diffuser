@@ -25,6 +25,7 @@ COPY llada_main.py .
 COPY generate.py .
 COPY generate_vanilla_prm.py .
 COPY gsm8k_test_data.csv .
+COPY generate_backmasking.py .
 
 
 

@@ -4,6 +4,7 @@ from transformers import AutoTokenizer, AutoModelForCausalLM, AutoModel
 from generate_vanilla_prm import generate as generateVanillaPRM
 from generate import generate as generateRawDiffusion
 import pandas as pd
+from generate_backmasking import generate as generateBackMasking
 
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -35,6 +36,8 @@ def run_inference():
     answers = df["answer"].tolist()
 
     for i, (question, answer) in enumerate(zip(questions, answers)):
+        if i == 8:
+            break
         print(f"\n=== Problem {i+1} ===")
         print(f"Question: {question}")
         print(f"Ground Truth Answer: {answer}\n")
@@ -57,7 +60,7 @@ def run_inference():
             steps=128,
             gen_length=128,
             block_length=32,
-            temperature=0.0,
+            temperature=0.6,
             cfg_scale=0.0,
             remasking="low_confidence",
         )
@@ -72,17 +75,40 @@ def run_inference():
             steps=128,
             gen_length=128,
             block_length=32,
-            temperature=0.0,
+            temperature=0.6,
             cfg_scale=0.0,
             remasking="low_confidence",
         )
         raw_response = tokenizer.batch_decode(
             raw_out[:, input_ids.shape[1] :], skip_special_tokens=True
         )[0]
+        # Generate with backmasking
+        backmasking_out = generateBackMasking(
+            model,
+            input_ids,
+            prm_model=prm_model,
+            tokenizer=tokenizer,
+            prm_tokenizer=prm_tokenizer,
+            steps=128,
+            gen_length=128,
+            block_length=32,
+            temperature=0.3,
+            cfg_scale=0.0,
+            remasking="low_confidence",
+            backmasking_alpha=5.0,
+            backmasking_intensity=0.5,
+            global_demasking=True,
+            backmasking_frequency=3,
+            backmasking_threshold=0.4,
+        )
+        backmasking_response = tokenizer.batch_decode(
+            backmasking_out[:, input_ids.shape[1] :], skip_special_tokens=True
+        )[0]
 
         print("=== Model Responses ===")
         print(f"PRM Response:\n{prm_response}\n")
         print(f"Raw Diffusion Response:\n{raw_response}\n")
+        print(f"Backmasking Response:\n{backmasking_response}\n")
         print("=" * 80)
 
 
