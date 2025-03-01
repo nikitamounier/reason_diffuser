@@ -14,7 +14,6 @@ model = AutoModelForCausalLM.from_pretrained(
     "GSAI-ML/LLaDA-8B-Instruct", trust_remote_code=True
 )
 model = model.to(device)
-prompt = "Lily can run 12 kilometers per hour for 4 hours. After that, she runs 6 kilometers per hour. How many kilometers can she run in 8 hours?"
 prm_model_name = "Qwen/Qwen2.5-Math-PRM-7B"
 prm_tokenizer = AutoTokenizer.from_pretrained(prm_model_name, trust_remote_code=True)
 prm_model = (
