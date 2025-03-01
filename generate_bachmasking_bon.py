@@ -96,7 +96,8 @@ def calculate_backmasking_probs(block_scores, backmasking_alpha=5.0, min_prob=0.
 
 
 def get_backmasking_tokens(
-    block_indices, block_probs, prompt_length, block_length, backmasking_intensity=0.5
+    block_indices, block_probs, prompt_length, block_length, backmasking_intensity=0.5,
+    current_tokens=None, tokenizer=None
 ):
     """
     Determine which tokens to backmark based on block probabilities.
@@ -107,11 +108,18 @@ def get_backmasking_tokens(
         prompt_length: Length of the prompt
         block_length: Length of each block
         backmasking_intensity: Overall intensity of backmasking
+        current_tokens: Optional current token sequence for token-to-text mapping
+        tokenizer: Optional tokenizer for decoding tokens
 
     Returns:
-        Boolean mask where True indicates tokens to be masked
+        Tuple containing:
+        - Boolean mask where True indicates tokens to be masked
+        - List of indices of tokens to be masked
+        - List of dictionaries with token mapping information (if current_tokens and tokenizer provided)
     """
     mask = torch.zeros_like(block_indices[0], dtype=torch.bool)
+    masked_indices = []
+    masked_text_info = []
 
     for i, (indices, prob) in enumerate(zip(block_indices, block_probs)):
         # Calculate number of tokens to mask in this block
@@ -130,8 +138,23 @@ def get_backmasking_tokens(
                     torch.randperm(len(block_positions))[:num_to_mask]
                 ]
                 mask[0, mask_positions] = True
+                masked_indices.extend(mask_positions.tolist())
+                
+                # If we have the current tokens and tokenizer, map tokens to text
+                if current_tokens is not None and tokenizer is not None:
+                    for pos in mask_positions:
+                        token_id = current_tokens[0, pos].item()
+                        token_text = tokenizer.decode([token_id])
+                        masked_text_info.append({
+                            "token_idx": pos.item(),
+                            "token_text": token_text,
+                            "position_from_prompt": (pos.item() - prompt_length)
+                        })
 
-    return mask
+    if current_tokens is not None and tokenizer is not None:
+        return mask, masked_indices, masked_text_info
+    else:
+        return mask, masked_indices
 
 
 def compute_block_score(block_text, prompt_text, prm_model, prm_tokenizer):
@@ -282,7 +305,7 @@ def generate(
         f"  - Backmasking parameters: Alpha={backmasking_alpha}, Intensity={backmasking_intensity}"
     )
     print(
-        f"  - Backmasking frequency: {backmasking_xfrequency}, Threshold: {backmasking_threshold}"
+        f"  - Backmasking frequency: {backmasking_frequency}, Threshold: {backmasking_threshold}"
     )
     print(f"  - Global demasking: {global_demasking}")
     print(f"  - Max retry attempts: {max_retry_attempts}")
@@ -487,12 +510,14 @@ def generate(
             )
 
             # Determine which tokens to backmask
-            mask = get_backmasking_tokens(
+            mask, masked_indices, masked_text_info = get_backmasking_tokens(
                 block_indices,
                 backmasking_probs,
                 prompt.shape[1],
                 block_length,
                 backmasking_intensity,
+                x,
+                tokenizer,
             )
 
             # Apply the mask

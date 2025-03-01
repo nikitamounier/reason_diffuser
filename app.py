@@ -9,10 +9,10 @@ import importlib.util
 
 # Import the generate_backmasking module
 spec = importlib.util.spec_from_file_location(
-    "generate_backmasking", "generate_backmasking.py"
+    "generate_backmasking_bon", "generate_bachmasking_bon.py"
 )
-generate_backmasking = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(generate_backmasking)
+generate_backmasking_bon = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(generate_backmasking_bon)
 
 app = Flask(__name__)
 CORS(app)  # Enable CORS for all routes
@@ -88,20 +88,34 @@ def generate_with_monitoring(generation_id, prompt_text, **kwargs):
         input_ids = tokenizer(formatted_prompt, return_tensors="pt").input_ids.to(model.device)
         
         # Prepare for hooking into the generate function
-        original_get_backmasking_tokens = generate_backmasking.get_backmasking_tokens
-        original_compute_block_score = generate_backmasking.compute_block_score
-        original_calculate_backmasking_probs = generate_backmasking.calculate_backmasking_probs
+        original_get_backmasking_tokens = generate_backmasking_bon.get_backmasking_tokens
+        original_compute_block_score = generate_backmasking_bon.compute_block_score
+        original_calculate_backmasking_probs = generate_backmasking_bon.calculate_backmasking_probs
         
         # Override the function to capture masked tokens at each step
         def custom_get_backmasking_tokens(*args, **kwargs):
+            # Check if tokenizer and current tokens are passed
+            has_token_info = 'current_tokens' in kwargs and 'tokenizer' in kwargs
+            
+            # Call the original function
             result = original_get_backmasking_tokens(*args, **kwargs)
+            
+            # Unpack the result based on what was returned
+            if has_token_info:
+                mask, masked_indices, masked_text_info = result
+            else:
+                mask, masked_indices = result
+                masked_text_info = []
+            
             # Capture the state here
             block_indices, block_probs = args[0], args[1]
             
             step_data = {
                 "type": "backmasking",
                 "timestamp": time.time(),
-                "mask": result.cpu().numpy().tolist(),
+                "mask": mask.cpu().numpy().tolist(),
+                "masked_indices": masked_indices,
+                "masked_text_info": masked_text_info,
                 "block_probs": block_probs.tolist() if isinstance(block_probs, np.ndarray) else block_probs,
             }
             monitor.add_step(step_data)
@@ -136,13 +150,13 @@ def generate_with_monitoring(generation_id, prompt_text, **kwargs):
             return probs
         
         # Replace the functions with our instrumented versions
-        generate_backmasking.get_backmasking_tokens = custom_get_backmasking_tokens
-        generate_backmasking.compute_block_score = custom_compute_block_score
-        generate_backmasking.calculate_backmasking_probs = custom_calculate_backmasking_probs
+        generate_backmasking_bon.get_backmasking_tokens = custom_get_backmasking_tokens
+        generate_backmasking_bon.compute_block_score = custom_compute_block_score
+        generate_backmasking_bon.calculate_backmasking_probs = custom_calculate_backmasking_probs
         
         try:
             # Call the generate function
-            result = generate_backmasking.generate(
+            result = generate_backmasking_bon.generate(
                 model=model,
                 prompt=input_ids,
                 prm_model=prm_model,
@@ -157,9 +171,9 @@ def generate_with_monitoring(generation_id, prompt_text, **kwargs):
             
         finally:
             # Restore the original functions
-            generate_backmasking.get_backmasking_tokens = original_get_backmasking_tokens
-            generate_backmasking.compute_block_score = original_compute_block_score
-            generate_backmasking.calculate_backmasking_probs = original_calculate_backmasking_probs
+            generate_backmasking_bon.get_backmasking_tokens = original_get_backmasking_tokens
+            generate_backmasking_bon.compute_block_score = original_compute_block_score
+            generate_backmasking_bon.calculate_backmasking_probs = original_calculate_backmasking_probs
             
     except Exception as e:
         monitor.mark_error(str(e))
@@ -214,7 +228,7 @@ def get_status(generation_id):
 
 @app.route('/api/parameters', methods=['GET'])
 def get_parameters():
-    # Return the default parameters for the generate function (matching generate_backmasking.py)
+    # Return the default parameters for the generate function (matching generate_backmasking_bon.py)
     defaults = {
         "steps": 128,
         "gen_length": 512,
@@ -226,7 +240,8 @@ def get_parameters():
         "backmasking_intensity": 0.5,
         "global_demasking": True,
         "backmasking_frequency": 3,
-        "backmasking_threshold": 0.4
+        "backmasking_threshold": 0.4,
+        "max_retry_attempts": 5
     }
     return jsonify(defaults)
 

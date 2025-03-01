@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE_URL = 'http://localhost:5000/api';
+const API_BASE_URL = 'https://p01--api--wnjb7knzxxx6.code.run/api';
 
 export interface GenerationParameters {
   steps?: number;
@@ -19,6 +19,14 @@ export interface GenerationParameters {
 export interface GenerationStep {
   type: string;
   timestamp: number;
+  masked_indices?: number[];
+  masked_text_info?: {
+    token_idx: number;
+    token_text: string;
+    position_from_prompt: number;
+  }[];
+  block_text?: string;
+  score?: number;
   [key: string]: any;
 }
 
