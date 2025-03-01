@@ -12,7 +12,9 @@ RUN pip3 install --no-cache-dir \
     numpy==1.26.3 \
     pandas==2.1.4 \
     accelerate==0.26.1 \
-    datasets==2.16.1
+    datasets==2.16.1 \ 
+    modelscope==1.9.5 \
+    transformers_stream_generator==0.0.4
 
 # Create working directory and copy files
 WORKDIR /app
