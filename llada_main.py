@@ -1,7 +1,7 @@
 # Load required libraries
 import torch
 from transformers import AutoTokenizer, AutoModelForCausalLM, AutoModel
-from generate import generate
+from generate_vanilla_prm import generate
 
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
