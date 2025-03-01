@@ -5,7 +5,6 @@ import numpy as np
 from transformers import AutoTokenizer, AutoModelForCausalLM, AutoModel
 import time
 import threading
-import json
 import importlib.util
 
 # Import the generate_backmasking module
@@ -233,5 +232,6 @@ def get_parameters():
 
 if __name__ == '__main__':
     # Load models when the app starts
+    from waitress import serve
     load_models()
-    app.run(debug=True, port=5000) 
+    serve(app, host='0.0.0.0', port=80) 

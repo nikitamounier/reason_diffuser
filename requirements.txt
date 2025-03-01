@@ -3,3 +3,4 @@ flask-cors==3.0.10
 numpy==1.24.3
 torch==2.0.1
 transformers==4.30.2 
+waitress==2.1.2
