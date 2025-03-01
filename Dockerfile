@@ -7,7 +7,7 @@ RUN apt-get update && apt-get install -y \
 
 # Install Python packages
 RUN pip3 install --no-cache-dir \
-    transformers==4.36.2 \
+    transformers==4.49.0 \
     torch==2.1.2 \
     numpy==1.26.3 \
     pandas==2.1.4 \
