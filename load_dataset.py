@@ -1,6 +1,6 @@
 from datasets import load_dataset
 
-ds = load_dataset("openai/gsm8k", "main")
+ds = load_dataset("gsm8k", "main")
 
 
 def getTestDataPrefix(howmany=10):
