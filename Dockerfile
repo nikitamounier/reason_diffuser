@@ -14,12 +14,14 @@ RUN pip3 install --no-cache-dir \
     accelerate==0.26.1 \
     datasets==2.16.1
 
-# Create working directory
+# Create working directory and copy files
 WORKDIR /app
 
 # Copy all necessary files
 COPY llada_main.py .
 COPY generate.py .
+COPY prompts.txt .
+
 
 # Run the application
 CMD ["python3", "llada_main.py"]
