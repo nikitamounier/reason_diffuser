@@ -183,6 +183,42 @@ def compute_block_score(block_text, prompt_text, prm_model, prm_tokenizer):
         return 0.0  # If no scores, assign 0
 
 
+def recompute_all_block_scores(x, prompt, prompt_text, tokenizer, prm_model, prm_tokenizer, block_length):
+    """
+    Recompute PRM scores for all blocks after backmasking and demasking.
+    
+    Args:
+        x: The current token sequence
+        prompt: The original prompt tokens
+        prompt_text: The decoded prompt text
+        tokenizer: The main tokenizer
+        prm_model: The PRM model
+        prm_tokenizer: The PRM tokenizer
+        block_length: Length of each block
+        
+    Returns:
+        List of updated PRM scores for each block
+    """
+    num_blocks = (x.shape[1] - prompt.shape[1]) // block_length
+    updated_scores = []
+    
+    for block_idx in range(num_blocks):
+        block_text = tokenizer.decode(
+            x[
+                0,
+                prompt.shape[1]
+                + block_idx * block_length : prompt.shape[1]
+                + (block_idx + 1) * block_length,
+            ],
+            skip_special_tokens=True,
+        )
+        
+        block_score = compute_block_score(block_text, prompt_text, prm_model, prm_tokenizer)
+        updated_scores.append(block_score)
+    
+    return updated_scores
+
+
 @torch.no_grad()
 def generate(
     model,
@@ -200,6 +236,8 @@ def generate(
     backmasking_alpha=5.0,
     backmasking_intensity=0.5,
     global_demasking=True,
+    backmasking_frequency=3,  # Apply backmasking every N blocks
+    backmasking_threshold=0.4,  # Apply backmasking if any block scores below this threshold
 ):
     """
     Args:
@@ -218,6 +256,8 @@ def generate(
         backmasking_alpha: Controls the steepness of the exponential decay for backmasking probabilities.
         backmasking_intensity: Overall intensity of backmasking (0-1).
         global_demasking: Whether to demask the entire sequence in one go after backmasking (True) or block by block (False).
+        backmasking_frequency: Apply backmasking every N blocks (if set to 1, applies after every block).
+        backmasking_threshold: Apply backmasking if any block scores below this threshold.
     """
     x = torch.full((1, prompt.shape[1] + gen_length), mask_id, dtype=torch.long).to(
         model.device
@@ -316,8 +356,16 @@ def generate(
         ] = True
         block_indices.append(current_block_indices)
         
-        # Apply backmasking if we have at least one block with a score
-        if len(block_scores) > 1:
+        # Apply backmasking only when:
+        # 1. We have enough blocks (more than 1)
+        # 2. Either we've reached the backmasking frequency OR a block score is below threshold
+        should_backmask = len(block_scores) > 1 and (
+            (num_block + 1) % backmasking_frequency == 0 or  # Every N blocks
+            block_scores[-1] < backmasking_threshold  # Latest block is below threshold
+        )
+        
+        if should_backmask:
+            print(f"Applying backmasking after block {num_block+1}. Block scores: {block_scores}")
             # Calculate backmasking probabilities for all blocks based on their scores
             backmasking_probs = calculate_backmasking_probs(block_scores, backmasking_alpha)
             
@@ -386,6 +434,12 @@ def generate(
                             )
                             transfer_index[j, select_index] = True
                         x[transfer_index] = x0[transfer_index]
+                    
+                    # After global demasking, recompute all block scores
+                    block_scores = recompute_all_block_scores(
+                        x, prompt, prompt_text, tokenizer, prm_model, prm_tokenizer, block_length
+                    )
+                    print(f"Updated block scores after demasking: {block_scores}")
             else:
                 # Block-by-block demasking: demask each block separately
                 for block_idx in range(num_block + 1):
@@ -448,5 +502,11 @@ def generate(
                                 )
                                 transfer_index[j, select_index] = True
                             x[transfer_index] = x0[transfer_index]
+                
+                # After block-by-block demasking, recompute all block scores
+                block_scores = recompute_all_block_scores(
+                    x, prompt, prompt_text, tokenizer, prm_model, prm_tokenizer, block_length
+                )
+                print(f"Updated block scores after demasking: {block_scores}")
 
     return x
