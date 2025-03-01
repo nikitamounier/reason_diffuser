@@ -9,10 +9,7 @@ from generate_bachmasking_bon import generate as generateBackMaskingBon
 import json
 from tqdm import tqdm
 import numpy as np
-from groq import Groq
-
-# Initialize Groq client
-groq_client = Groq(api_key=os.environ.get("GROQ_API_KEY"))
+import re
 
 
 def setup_models():
@@ -43,35 +40,27 @@ def setup_models():
     return model, tokenizer, prm_model, prm_tokenizer, device
 
 
-def evaluate_answer(question, model_answer, ground_truth, model_name):
-    """Use Groq API to evaluate if the model's answer is correct."""
-    prompt = f"""
-You are an expert math evaluator. Your task is to determine if a model's answer to a math problem is correct.
+def extract_boxed_answer(text):
+    """Extract the answer from inside a \\boxed{} expression."""
+    pattern = r"\\boxed{(.*?)}"
+    match = re.search(pattern, text)
+    if match:
+        return match.group(1).strip()
+    return text  # Return the original text if no boxed content found
 
-Question: {question}
-Model ({model_name}) Answer: {model_answer}
-Ground Truth Answer: {ground_truth}
 
-Is the model's answer correct? Consider the following:
-1. The final numerical answer must be correct
-2. The reasoning should be mathematically sound
-3. Minor formatting differences are acceptable
+def evaluate_answer(model_answer, ground_truth):
+    """Compare the model's boxed answer with the ground truth."""
+    model_boxed = extract_boxed_answer(model_answer)
+    ground_truth_boxed = extract_boxed_answer(ground_truth)
 
-Respond with ONLY "orrect" or "Incorrect" followed by a brief explanation.
-"""
+    # Simple string comparison
+    is_correct = model_boxed == ground_truth_boxed
 
-    try:
-        response = groq_client.chat.completions.create(
-            model="llama3-70b-8192",
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.1,
-            max_tokens=150,
-        )
-        evaluation = response.choices[0].message.content
-        return evaluation
-    except Exception as e:
-        print(f"Error with Groq API: {e}")
-        return "Error: Could not evaluate"
+    if is_correct:
+        return "Correct: The boxed answer matches the ground truth."
+    else:
+        return f"Incorrect: Expected '{ground_truth_boxed}', got '{model_boxed}'."
 
 
 def run_math_evaluation():
@@ -213,14 +202,10 @@ def run_math_evaluation():
         print(f"Backmasking Bon Response:\n{backmasking_bon_response}\n")
 
         # Evaluate responses
-        prm_eval = evaluate_answer(question, prm_response, answer, "PRM")
-        raw_eval = evaluate_answer(question, raw_response, answer, "Raw Diffusion")
-        backmasking_eval = evaluate_answer(
-            question, backmasking_response, answer, "Backmasking"
-        )
-        backmasking_bon_eval = evaluate_answer(
-            question, backmasking_bon_response, answer, "Backmasking Bon"
-        )
+        prm_eval = evaluate_answer(prm_response, answer)
+        raw_eval = evaluate_answer(raw_response, answer)
+        backmasking_eval = evaluate_answer(backmasking_response, answer)
+        backmasking_bon_eval = evaluate_answer(backmasking_bon_response, answer)
 
         print("=== Evaluations ===")
         print(f"PRM: {prm_eval}")
