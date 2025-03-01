@@ -14,7 +14,9 @@ RUN pip3 install --no-cache-dir \
     accelerate==0.26.1 \
     datasets==2.13.0 \
     modelscope==1.9.5 \
-    transformers_stream_generator==0.0.4
+    transformers_stream_generator==0.0.4 \
+    flask \
+    flask-cors
 
 # Create working directory and copy files
 RUN pip3 install pandas
@@ -31,4 +33,3 @@ COPY generate_backmasking.py .
 
 # Run the application
 CMD ["python3", "llada_main.py"]
-
