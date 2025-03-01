@@ -101,7 +101,7 @@ def generate_with_monitoring(generation_id, prompt_text, **kwargs):
             result = original_get_backmasking_tokens(*args, **kwargs)
             
             # Unpack the result based on what was returned
-            if has_token_info:
+            if isinstance(result, tuple) and len(result) == 3:
                 mask, masked_indices, masked_text_info = result
             else:
                 mask, masked_indices = result
