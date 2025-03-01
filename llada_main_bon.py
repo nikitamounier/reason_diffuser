@@ -130,7 +130,7 @@ def run_inference():
             cfg_scale=0.0,
             remasking="low_confidence",
             backmasking_alpha=5.0,
-            backmasking_intensity=0.5,
+            backmasking_intensity=1,
             global_demasking=True,
             backmasking_frequency=3,
             backmasking_threshold=0.4,
