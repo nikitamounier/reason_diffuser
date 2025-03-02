@@ -1,0 +1,20 @@
+FROM pytorch/pytorch:2.1.0-cuda12.1-cudnn8-runtime
+
+WORKDIR /app
+
+# Install dependencies
+RUN pip install --no-cache-dir transformers pandas matplotlib groq
+
+# Copy necessary files
+COPY math_evals.py /app/
+COPY generate.py /app/
+COPY generate_vanilla_prm.py /app/
+COPY generate_backmasking.py /app/
+COPY generate_bachmasking_bon.py /app/
+COPY generate_vanilla_prm.py /app/
+COPY math_test_data.csv /app/
+
+
+
+# Run the evaluation script
+CMD ["python", "math_evals.py"]
