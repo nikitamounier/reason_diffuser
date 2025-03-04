@@ -1,4 +1,4 @@
-# LLaDA Backmasking Inference
+# Backmasking Inference (Reasoning with Diffusion Models)
 
 **Backmasking** is a method for inference-time computation based on language diffusion models (LLaDA). This is a novel method that enables language models to reason and change previous tokens at inference time. Our approach takes the PRM score for each block and uses that to proportionally mask and regenerate previous tokens until a required score (a hyperparameter) is reached.
 
