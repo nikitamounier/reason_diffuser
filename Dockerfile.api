@@ -16,7 +16,8 @@ RUN pip3 install --no-cache-dir \
     modelscope==1.9.5 \
     transformers_stream_generator==0.0.4 \
     flask \
-    flask-cors
+    flask-cors \
+    waitress
 
 # Create working directory and copy files
 RUN pip3 install pandas
@@ -26,11 +27,11 @@ WORKDIR /app
 COPY llada_main.py .
 COPY generate.py .
 COPY generate_vanilla_prm.py .
-COPY math_test_data.csv .
+COPY gsm8k_test_data.csv .
 COPY generate_backmasking.py .
-COPY llada_main_bon.py .
-COPY generate_bachmasking_bon.py . 
+COPY app.py .
 
+ENTRYPOINT ["python"]
+CMD ["app.py"]
 
-# Run the application
-CMD ["python3", "llada_main_bon.py"]
+EXPOSE 80
