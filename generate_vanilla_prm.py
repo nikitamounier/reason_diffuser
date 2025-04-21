@@ -140,8 +140,7 @@ def generate(
             candidate_batch_x[:, start_block_idx:end_block_idx] == mask_id
         )
 
-        # Calculate tokens to transfer per step for the batch
-        # We only care about masks *within the current block* for scheduling
+        
         num_transfer_tokens = get_num_transfer_tokens(
             block_mask_index_batch[:, start_block_idx:end_block_idx], # Pass only the block's mask portion
             steps_per_block
